@@ -34,11 +34,10 @@ ax.set_xlim(0, 12)
 ax.set_ylim(-2.5, 2.5)
 ax.axis("off")
 
-ax.plot([0, 12], [0, 0], lw=2)
-ax.set_title("Polarisationsfilter mit drehbarem zweiten Filter")
+ax.plot([0, 12], [0, 0], lw=2, color="black")
+ax.set_title("Polarisationsfilter mit sichtbarem E-Feld")
 
 # Slider
-
 slider_ax = plt.axes([0.2, 0.08, 0.65, 0.04])
 angle_slider = Slider(
     ax=slider_ax,
@@ -68,16 +67,28 @@ def draw_filter(x0, angle, label, size=1.8):
     artist, = ax.plot(
         [x0 - width/2, x0 + width/2, x0 + width/2, x0 - width/2, x0 - width/2],
         [-height, -height, height, height, -height],
-        lw=2
+        lw=2,
+        color="black"
     )
     filter_artists.append(artist)
 
-    # Gitterlinien
-    for s in np.linspace(-0.22, 0.22, 7):
+    # Stäbe liegen SENKRECHT zur Durchlassrichtung
+    rod_angle = angle + np.pi / 2
+
+    for s in np.linspace(-0.45, 0.45, 7):
+        cx = x0 + s * np.cos(angle)
+        cy = s * np.sin(angle)
+
+        L = height
+
+        dx = 0.18 * L * np.cos(rod_angle)
+        dy = L * np.sin(rod_angle)
+
         artist, = ax.plot(
-            [x0 + s, x0 + s],
-            [-height, height],
-            lw=1
+            [cx - dx, cx + dx],
+            [cy - dy, cy + dy],
+            lw=1.4,
+            color="gray"
         )
         filter_artists.append(artist)
 
@@ -90,6 +101,7 @@ def draw_filter(x0, angle, label, size=1.8):
         head_width=0.1,
         head_length=0.15,
         lw=2,
+        color="red",
         length_includes_head=True
     )
     filter_artists.append(arrow)
@@ -97,7 +109,9 @@ def draw_filter(x0, angle, label, size=1.8):
     txt = ax.text(x0, 2.05, label, ha="center", fontsize=12)
     filter_artists.append(txt)
 
-# fester Filter 1 wird separat gezeichnet
+# -----------------------------
+# Fester Filter 1
+# -----------------------------
 def draw_static_filter1():
     height = 2.0
     width = 0.55
@@ -106,11 +120,17 @@ def draw_static_filter1():
     ax.plot(
         [x0 - width/2, x0 + width/2, x0 + width/2, x0 - width/2, x0 - width/2],
         [-height, -height, height, height, -height],
-        lw=2
+        lw=2,
+        color="black"
     )
 
     for s in np.linspace(-0.22, 0.22, 7):
-        ax.plot([x0 + s, x0 + s], [-height, height], lw=1)
+        ax.plot(
+            [x0 + s, x0 + s],
+            [-height, height],
+            lw=1,
+            color="gray"
+        )
 
     ax.arrow(
         x0, -2.15,
@@ -119,6 +139,7 @@ def draw_static_filter1():
         head_width=0.1,
         head_length=0.15,
         lw=2,
+        color="red",
         length_includes_head=True
     )
 
@@ -127,44 +148,56 @@ def draw_static_filter1():
 draw_static_filter1()
 
 # -----------------------------
-# Wellen
+# Wellenlinien
 # -----------------------------
-line_before, = ax.plot([], [], lw=3)
-line_mid, = ax.plot([], [], lw=3)
-line_after, = ax.plot([], [], lw=3)
+line_before, = ax.plot([], [], lw=3, color="blue", label="vor Filter")
+line_mid, = ax.plot([], [], lw=3, color="green", label="nach Filter 1")
+line_after, = ax.plot([], [], lw=3, color="orange", label="nach Filter 2")
 
-arrows = []
+# -----------------------------
+# E-Feld-Pfeile
+# -----------------------------
+E_arrows = []
 
-def clear_arrows():
-    global arrows
-    for a in arrows:
+def clear_E_arrows():
+    global E_arrows
+    for a in E_arrows:
         a.remove()
-    arrows = []
+    E_arrows = []
 
-def draw_arrows(xs, ys, angle):
-    global arrows
-    for xi, yi in zip(xs, ys):
-        dx = 0.42 * yi * np.cos(angle)
-        dy = 0.42 * yi * np.sin(angle)
+def draw_E_arrows(xs, amplitudes, angle, color):
+    global E_arrows
+
+    for xi, Ei in zip(xs, amplitudes):
+        dx = 0.45 * Ei * np.cos(angle)
+        dy = 0.45 * Ei * np.sin(angle)
 
         arr = ax.arrow(
             xi, 0,
             dx, dy,
             head_width=0.06,
             head_length=0.08,
-            lw=1.2,
-            alpha=0.8
+            lw=1.3,
+            color=color,
+            alpha=0.9,
+            length_includes_head=True
         )
-        arrows.append(arr)
+        E_arrows.append(arr)
 
+# -----------------------------
 # Texte
-text_amp = ax.text(8.5, -2.35, "", ha="center", fontsize=12)
+# -----------------------------
+ax.text(1.0, 1.8, "vor Filter", color="blue", fontsize=12)
+ax.text(5.0, 1.8, "nach Filter 1", color="green", fontsize=12)
+ax.text(9.0, 1.8, "nach Filter 2", color="orange", fontsize=12)
+
+info_text = ax.text(8.5, -2.38, "", ha="center", fontsize=11)
 
 # -----------------------------
 # Animation
 # -----------------------------
 def update(frame):
-    clear_arrows()
+    clear_E_arrows()
     clear_filter_artists()
 
     t = frame * 0.07
@@ -193,30 +226,44 @@ def update(frame):
     line_mid.set_data(xm, ym)
     line_after.set_data(xa, ya)
 
-    draw_arrows(
-        np.linspace(1, filter1_x - 0.5, 6),
-        A0 * np.cos(k * np.linspace(1, filter1_x - 0.5, 6) - omega * t),
-        theta_in
+    # Positionen für E-Feld-Pfeile
+    xs1 = np.linspace(1, filter1_x - 0.5, 6)
+    xs2 = np.linspace(filter1_x + 0.5, filter2_x - 0.5, 6)
+    xs3 = np.linspace(filter2_x + 0.5, 11, 6)
+
+    # E-Feld vor Filter
+    draw_E_arrows(
+        xs1,
+        A0 * np.cos(k * xs1 - omega * t),
+        theta_in,
+        color="blue"
     )
 
-    draw_arrows(
-        np.linspace(filter1_x + 0.5, filter2_x - 0.5, 6),
-        A1 * np.cos(k * np.linspace(filter1_x + 0.5, filter2_x - 0.5, 6) - omega * t),
-        theta_f1
+    # E-Feld nach Filter 1
+    draw_E_arrows(
+        xs2,
+        A1 * np.cos(k * xs2 - omega * t),
+        theta_f1,
+        color="green"
     )
 
-    draw_arrows(
-        np.linspace(filter2_x + 0.5, 11, 6),
-        A2 * np.cos(k * np.linspace(filter2_x + 0.5, 11, 6) - omega * t),
-        theta_f2
+    # E-Feld nach Filter 2
+    draw_E_arrows(
+        xs3,
+        A2 * np.cos(k * xs3 - omega * t),
+        theta_f2,
+        color="orange"
     )
 
-    intensity_factor = (A2 / A1) ** 2 if A1 != 0 else 0
-    text_amp.set_text(
-        f"Filter 2: {angle_slider.val:.0f}°   |   relative Intensität: {intensity_factor:.2f}"
+    # relative Intensität nach Filter 2 bezogen auf nach Filter 1
+    delta = theta_f2 - theta_f1
+    intensity_factor = np.cos(delta) ** 2
+
+    info_text.set_text(
+        f"Filter 2: {angle_slider.val:.0f}°   |   I₂/I₁ = cos²(Δθ) = {intensity_factor:.2f}"
     )
 
-    return line_before, line_mid, line_after, text_amp
+    return line_before, line_mid, line_after, info_text
 
 ani = FuncAnimation(fig, update, frames=400, interval=30, blit=False)
 
